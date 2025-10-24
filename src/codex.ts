@@ -9,6 +9,7 @@ const defaultPostOptions = {
   temperature: 0, // sampling temperature; higher values increase diversity
   n: 5, // number of completions to return
   top_p: 1, // no need to change this
+  model: "deepseek-coder:6.7b"
 };
 export type PostOptions = Partial<typeof defaultPostOptions>;
 
@@ -79,6 +80,7 @@ export class Codex implements ICompletionModel {
       : {
           prompt,
           ...options,
+          model: options.model
         };
 
     const res = await axios.post(this.apiEndpoint, postOptions, { headers });
@@ -98,8 +100,67 @@ export class Codex implements ICompletionModel {
     if (!res.data) {
       throw new Error("Response data is empty");
     }
-    const json = res.data;
-    if (json.error) {
+    // The endpoint may return several shapes:
+    // - a JSON object with `choices[]` (OpenAI)
+    // - a JSON object with `response` (Ollama-like)
+    // - newline-delimited JSON chunks (streamed NDJSON) where each line is a JSON object with `response` fragments
+    let json: any = res.data;
+
+    // If we received a string that looks like NDJSON (many JSON objects separated by newlines), or
+    // the endpoint returned an array of fragments, try to parse and assemble them into a single text
+    if (typeof json === "string") {
+      const lines = json.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      if (lines.length > 1) {
+        const fragments: any[] = [];
+        for (const line of lines) {
+          try {
+            fragments.push(JSON.parse(line));
+          } catch (e) {
+            // ignore non-JSON lines
+          }
+        }
+        if (fragments.length > 0) {
+          const assembled = fragments
+            .map((f) => {
+              if (typeof f.response === "string") return f.response;
+              if (typeof f.generated_text === "string") return f.generated_text;
+              if (f.outputs && Array.isArray(f.outputs))
+                return f.outputs.map((o: any) => o.text || o.content || "").join("");
+              if (f.choices && Array.isArray(f.choices))
+                return f.choices.map((c: any) => c.text || c.response || "").join("");
+              return "";
+            })
+            .join("");
+          json = { choices: [{ text: assembled }] };
+        }
+      } else {
+        // try parse single-line JSON string
+        try {
+          json = JSON.parse(json);
+        } catch (e) {
+          // keep as string
+        }
+      }
+    } else if (Array.isArray(json)) {
+      // some servers may already return an array of fragment objects instead of NDJSON
+      const fragments = json;
+      if (fragments.length > 0) {
+        const assembled = fragments
+          .map((f: any) => {
+            if (typeof f.response === "string") return f.response;
+            if (typeof f.generated_text === "string") return f.generated_text;
+            if (f.outputs && Array.isArray(f.outputs))
+              return f.outputs.map((o: any) => o.text || o.content || "").join("");
+            if (f.choices && Array.isArray(f.choices))
+              return f.choices.map((c: any) => c.text || c.response || "").join("");
+            return "";
+          })
+          .join("");
+        json = { choices: [{ text: assembled }] };
+      }
+    }
+
+    if (json && json.error) {
       throw new Error(json.error);
     }
     let numContentFiltered = 0;
