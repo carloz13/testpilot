@@ -172,7 +172,14 @@ export class Codex implements ICompletionModel {
         if (choice.finish_reason === "content_filter") {
           numContentFiltered++;
         }
-        completions.add(choice.text);
+
+        let text = choice.text?.trim() || "";
+        const codeFenceRegex = /```[\s\S]*?```/g;
+        const match = text.match(codeFenceRegex);
+        if(match) {
+          text = match.map((m: any) => m.replace(/```[\w-]*\n?/, "").replace(/```$/, "").trim()).join("\n\n");
+        }
+        completions.add(text);
       }
     }
     if (numContentFiltered > 0) {

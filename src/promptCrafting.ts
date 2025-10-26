@@ -71,6 +71,7 @@ export function defaultPromptOptions(): PromptOptions {
  * to assemble them into a textual prompt and complete them into a test case.
  */
 export class Prompt {
+  private readonly formatResult: string;
   private readonly imports: string;
   private readonly signature: string;
   private readonly docComment: string;
@@ -85,6 +86,7 @@ export class Prompt {
     public readonly options: PromptOptions
   ) {
     const sanitizedPackageName = sanitizePackageName(fun.packageName);
+    this.formatResult = `//IMPORTANT: ONLY THE TEST CODE BLOCK IS ALLOWED, DON'T WRITE UNCOMMITTED EXPLANATIONS TEXT.\n`;
     this.imports = dedent`
             let mocha = require('mocha');
             let assert = require('assert');
@@ -133,6 +135,7 @@ export class Prompt {
    */
   public assemble(): string {
     return (
+      this.formatResult +
       this.imports +
       this.assembleUsageSnippets() +
       this.docComment +

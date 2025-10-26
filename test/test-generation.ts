@@ -18,7 +18,7 @@ describe("MochaValidator", function () {
         expect(valid.status).to.equal(expectedOutcomes[i]);
       }
     } finally {
-      fs.rmdirSync(testDir, { recursive: true });
+      fs.rmSync(testDir, { recursive: true });
       validator.cleanup();
     }
   }

@@ -292,7 +292,7 @@ export class TestResultCollector extends BaseTestResultCollector {
    */
   private createOutputDir() {
     if (fs.existsSync(this.outputDir)) {
-      fs.rmdirSync(this.outputDir, { recursive: true });
+      fs.rmSync(this.outputDir, { recursive: true });
     }
     fs.mkdirSync(this.outputDir, { recursive: true });
     fs.mkdirSync(path.join(this.outputDir, "tests"));

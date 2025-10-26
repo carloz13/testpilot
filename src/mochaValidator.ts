@@ -69,12 +69,13 @@ export class MochaValidator extends TestValidator {
     const packagePath = path.resolve(this.testDir, "..");
 
     // temporary directory to store output from mocha and nyc
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mocha-validator"));
+    const tmpDir = fs.mkdtempSync(path.join(packagePath, "mocha-validator"));
     // directory to store nyc profile and coverage data
     const coverageDir = path.join(tmpDir, "coverage");
     // coverage report, produced by nyc
     const coverageReport = path.join(coverageDir, "coverage-final.json");
     // test report, produced by mocha
+    // console.warn("ccci: " + tmpDir + " " + path.join(tmpDir, "report.json"));
     const reportFile = path.join(tmpDir, "report.json");
 
     performance.mark(`start:${testName}`);
@@ -102,7 +103,7 @@ export class MochaValidator extends TestValidator {
       }
     );
     performance.measure(`duration:${testName}`, `start:${testName}`);
-    const stderr = res.stderr.toString();
+    const stderr = (String)(res.stderr);
     const report = MochaValidator.tryParseReport(reportFile);
 
     // parse test results; this is a bit complicated since Mocha sometimes reports asynchroneous tests
@@ -156,8 +157,8 @@ export class MochaValidator extends TestValidator {
     }
 
     // no need to keep coverage data for invalid tests
-    if (outcome.status != "PASSED") {
-      fs.rmdirSync(coverageDir, { recursive: true });
+    if (outcome.status != "PASSED" && fs.existsSync(coverageDir)) {
+        fs.rmSync(coverageDir, { recursive: true });
     }
     return outcome;
   }
@@ -181,7 +182,7 @@ export class MochaValidator extends TestValidator {
       // create/clean .nyc_output directory
       const nycOutput = path.join(this.packagePath, ".nyc_output");
       if (fs.existsSync(nycOutput)) {
-        fs.rmdirSync(nycOutput, { recursive: true });
+        fs.rmSync(nycOutput, { recursive: true });
       }
       fs.mkdirSync(nycOutput);
 
@@ -217,7 +218,7 @@ export class MochaValidator extends TestValidator {
         );
       }
     } finally {
-      fs.rmdirSync(testDir, { recursive: true });
+      fs.rmSync(testDir, { recursive: true });
     }
   }
 
@@ -234,7 +235,7 @@ export class MochaValidator extends TestValidator {
 
   public cleanup(): void {
     for (const coverageDir of this.coverageDirs) {
-      fs.rmdirSync(coverageDir, { recursive: true });
+      fs.rmSync(coverageDir, { recursive: true });
     }
   }
 }
