@@ -34,7 +34,7 @@ export class MochaValidator extends TestValidator {
 
   constructor(private packageName: string, private packagePath: string) {
     super();
-    this.testDir = fs.mkdtempSync(path.join(packagePath, "test-"));
+    this.testDir = fs.mkdtempSync(path.join(os.tmpdir(), "test-"));
   }
 
   private scrubTestDirFromError(error: ITestFailureInfo): ITestFailureInfo {
@@ -63,7 +63,7 @@ export class MochaValidator extends TestValidator {
     }
     fs.writeFileSync(
       testFile,
-      testSource.replace(requirePattern, `require('..')`)
+      testSource.replace(requirePattern, `require('${this.packagePath.replace(/\\/g, "/")}')`)
     );
 
     const packagePath = path.resolve(this.testDir, "..");
@@ -98,10 +98,18 @@ export class MochaValidator extends TestValidator {
         testFile,
       ],
       {
-        timeout: 5000,
+        cwd: path.join(__dirname, ".."),
         killSignal: "SIGKILL",
+        shell: true,
+        env: {
+          ...process.env,
+          NODE_PATH: path.join(__dirname, "..", "node_modules"),
+        }
       }
     );
+    console.log("STDERR:", String(res.stderr));
+    console.log("STDOUT:", String(res.stdout));
+    console.log("STATUS:", res.status);
     performance.measure(`duration:${testName}`, `start:${testName}`);
     const stderr = (String)(res.stderr);
     const report = MochaValidator.tryParseReport(reportFile);
@@ -235,7 +243,7 @@ export class MochaValidator extends TestValidator {
 
   public cleanup(): void {
     for (const coverageDir of this.coverageDirs) {
-      fs.rmSync(coverageDir, { recursive: true });
+      fs.rmSync(coverageDir, { recursive: true, force: true });
     }
   }
 }
