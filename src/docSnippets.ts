@@ -260,6 +260,8 @@ export function findFencedCodeBlocks(fileName: string): Set<string> {
   let codeBlocks = new Set<string>();
   let regExp = /^```[\s\S]*?^```$/gm;
   let fileContents = fs.readFileSync(fileName, "utf8");
+  // Normalize CRLF to LF so regex matching is consistent across platforms
+  fileContents = fileContents.replace(/\r\n/g, "\n");
   let matches = fileContents.match(regExp);
   if (matches) {
     for (let match of matches) {
